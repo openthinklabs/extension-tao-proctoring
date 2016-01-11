@@ -229,15 +229,17 @@ class DeliveryExecutionStateService extends ConfigurableService
     public function reportExecution($executionId, $reason)
     {
         $deliveryMonitoringData = $this->getDeliveryMonitoringService()->getData($executionId);
-        /* todo do not override irregularities */
         $data = $deliveryMonitoringData->get();
-        if (!isset($data['TEST_IRREGULARITY'])) {
-            $testIrregularity = [];
+        if (isset($data['TEST_IRREGULARITY']) && $this->isJson($data['TEST_IRREGULARITY'])) {
+            $testIrregularity = json_decode($data['TEST_IRREGULARITY'], true);
         } else {
-            $testIrregularity = $data['TEST_IRREGULARITY'];
+            $testIrregularity = [];
         }
 
-        $deliveryMonitoringData->add('TEST_IRREGULARITY', $reason, true);
+        $reason['timestamp'] = time();
+        $testIrregularity[] = $reason;
+
+        $deliveryMonitoringData->add('TEST_IRREGULARITY', json_encode($testIrregularity), true);
         return $this->getDeliveryMonitoringService()->save($deliveryMonitoringData);
     }
 
@@ -256,6 +258,12 @@ class DeliveryExecutionStateService extends ConfigurableService
 
         $deliveryMonitoringData = $deliveryMonitoringService->getData($deliveryExecution->getIdentifier());
         $deliveryMonitoringData->add(DeliveryMonitoringService::STATUS, $state, true);
+
+        if (is_array($reason)) {
+            $reason['timestamp'] = time();
+            $reason = json_encode($reason);
+        }
+        
         $deliveryMonitoringData->add('reason', $reason, true);
         $deliveryMonitoringService->save($deliveryMonitoringData);
     }
@@ -479,4 +487,13 @@ class DeliveryExecutionStateService extends ConfigurableService
         return ServiceManager::getServiceManager()->get(DeliveryMonitoringService::CONFIG_ID);
     }
 
+    /**
+     * Check whether string is json
+     * @param string $string
+     * @return bool
+     */
+    private function isJson($string) {
+        json_decode($string);
+        return (json_last_error() == JSON_ERROR_NONE);
+    }
 }
