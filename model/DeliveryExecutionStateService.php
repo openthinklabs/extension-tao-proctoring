@@ -21,6 +21,7 @@
 namespace oat\taoProctoring\model;
 
 use oat\taoProctoring\model\implementation\ExtendedStateService;
+use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
 use oat\oatbox\service\ConfigurableService;
 use oat\taoDelivery\models\classes\execution\DeliveryExecution;
 use oat\taoDelivery\model\AssignmentService;
@@ -28,6 +29,8 @@ use qtism\runtime\storage\binary\BinaryAssessmentTestSeeker;
 use qtism\runtime\tests\AssessmentTestSession;
 use qtism\runtime\storage\common\AbstractStorage;
 use oat\taoQtiTest\models\TestSessionMetaData;
+use oat\oatbox\service\ServiceManager;
+
 
 /**
  * Class DeliveryExecutionStateService
@@ -38,27 +41,6 @@ class DeliveryExecutionStateService extends ConfigurableService
 {
     const SERVICE_ID = 'taoProctoring/DeliveryExecutionState';
 
-    const STATE_INIT = 'INIT';
-    const STATE_AWAITING = 'AWAITING';
-    const STATE_AUTHORIZED = 'AUTHORIZED';
-    const STATE_INPROGRESS = 'INPROGRESS';
-    const STATE_PAUSED = 'PAUSED';
-    const STATE_COMPLETED = 'COMPLETED';
-    const STATE_TERMINATED = 'TERMINATED';
-
-    /**
-     * Ordered list of allowed states
-     * @var array
-     */
-    private static $allowedStates = array(
-        self::STATE_INIT,
-        self::STATE_AWAITING,
-        self::STATE_AUTHORIZED,
-        self::STATE_INPROGRESS,
-        self::STATE_PAUSED,
-        self::STATE_COMPLETED,
-        self::STATE_TERMINATED
-    );
 
     private $executionService;
 
@@ -93,24 +75,8 @@ class DeliveryExecutionStateService extends ConfigurableService
     public function getState(DeliveryExecution $deliveryExecution)
     {
         $executionStatus = $deliveryExecution->getState()->getUri();
-        $proctoringState = $this->getProctoringState($deliveryExecution->getIdentifier());
-        $status = $proctoringState['status'];
 
-        if (DeliveryExecution::STATE_FINISHIED == $executionStatus) {
-            if (self::STATE_TERMINATED != $status) {
-                $status = self::STATE_COMPLETED;
-            }
-        } else if (!$status) {
-            if (DeliveryExecution::STATE_ACTIVE == $executionStatus) {
-                $status = self::STATE_INIT;
-            } else if (DeliveryExecution::STATE_PAUSED == $executionStatus) {
-                $status = self::STATE_PAUSED;
-            } else {
-                throw new \common_Exception('Unknown state for delivery execution ' . $deliveryExecution->getIdentifier());
-            }
-        }
-
-        return $status;
+        return $executionStatus;
     }
 
     /**
@@ -125,8 +91,9 @@ class DeliveryExecutionStateService extends ConfigurableService
         $executionState = $this->getState($deliveryExecution);
         $result = false;
 
-        if (self::STATE_TERMINATED != $executionState && self::STATE_COMPLETED != $executionState) {
-            $this->setProctoringState($deliveryExecution->getIdentifier(), self::STATE_AWAITING);
+        if ($executionState !== DeliveryExecution::STATE_FINISHED && $executionState !== DeliveryExecution::STATE_TERMINATED) {
+            ServiceManager::getServiceManager()->get(DeliveryAuthorizationService::SERVICE_ID)->revokeAuthorization($deliveryExecution);
+            $this->setProctoringState($deliveryExecution->getIdentifier(), DeliveryExecution::STATE_AWAITING);
 
             $result = true;
         }
@@ -146,13 +113,13 @@ class DeliveryExecutionStateService extends ConfigurableService
         $executionState = $this->getState($deliveryExecution);
         $result = false;
 
-        if (self::STATE_AUTHORIZED == $executionState) {
+        if ($executionState === DeliveryExecution::STATE_AUTHORIZED) {
             $session = $this->getTestSession($deliveryExecution);
             if ($session) {
                 $this->resumeSession($session);
             }
 
-            $this->setProctoringState($deliveryExecution->getIdentifier(), self::STATE_INPROGRESS);
+            $this->setProctoringState($deliveryExecution->getIdentifier(), DeliveryExecution::STATE_ACTIVE);
 
             $result = true;
         }
@@ -170,17 +137,17 @@ class DeliveryExecutionStateService extends ConfigurableService
     public function authoriseExecution($executionId, $reason = null)
     {
         $deliveryExecution = $this->getExecutionService()->getDeliveryExecution($executionId);
-        $executionState = $this->getState($deliveryExecution);
         $result = false;
 
-        if (self::STATE_AWAITING == $executionState) {
+        if ($this->getState($deliveryExecution) === DeliveryExecution::STATE_AWAITING) {
+            ServiceManager::getServiceManager()->get(DeliveryAuthorizationService::SERVICE_ID)->grantAuthorization($deliveryExecution);
             $session = $this->getTestSession($deliveryExecution);
             if ($session) {
                 $this->setTestVariable($session, 'TEST_AUTHORISE', $reason);
                 $this->getStorage()->persist($session);
             }
 
-            $this->setProctoringState($deliveryExecution->getIdentifier(), self::STATE_AUTHORIZED, $reason);
+            $this->setProctoringState($deliveryExecution->getIdentifier(), DeliveryExecution::STATE_AUTHORIZED, $reason);
 
             $result = true;
         }
@@ -201,7 +168,7 @@ class DeliveryExecutionStateService extends ConfigurableService
         $executionState = $this->getState($deliveryExecution);
         $result = false;
 
-        if (self::STATE_TERMINATED != $executionState && self::STATE_COMPLETED != $executionState) {
+        if ($executionState !== DeliveryExecution::STATE_TERMINATED && $executionState !== DeliveryExecution::STATE_FINISHED) {
             $session = $this->getTestSession($deliveryExecution);
             if ($session) {
                 $testSessionMetaData = new TestSessionMetaData($session);
@@ -216,8 +183,7 @@ class DeliveryExecutionStateService extends ConfigurableService
                 $this->finishSession($session);
             }
 
-            $deliveryExecution->setState(DeliveryExecution::STATE_FINISHIED);
-            $this->setProctoringState($deliveryExecution->getIdentifier(), self::STATE_TERMINATED, $reason);
+            $this->setProctoringState($deliveryExecution->getIdentifier(), DeliveryExecution::STATE_TERMINATED, $reason);
 
             $result = true;
         }
@@ -238,14 +204,14 @@ class DeliveryExecutionStateService extends ConfigurableService
         $executionState = $this->getState($deliveryExecution);
         $result = false;
 
-        if (self::STATE_TERMINATED != $executionState && self::STATE_COMPLETED != $executionState) {
+        if ($executionState !== DeliveryExecution::STATE_TERMINATED && $executionState !== DeliveryExecution::STATE_FINISHED) {
             $session = $this->getTestSession($deliveryExecution);
             if ($session) {
                 $this->setTestVariable($session, 'TEST_PAUSE', $reason);
                 $this->suspendSession($session);
             }
 
-            $this->setProctoringState($deliveryExecution->getIdentifier(), self::STATE_PAUSED, $reason);
+            $this->setProctoringState($deliveryExecution->getIdentifier(), DeliveryExecution::STATE_PAUSED, $reason);
 
             $result = true;
         }
@@ -262,14 +228,10 @@ class DeliveryExecutionStateService extends ConfigurableService
      */
     public function reportExecution($executionId, $reason)
     {
-        $deliveryExecution = $this->getExecutionService()->getDeliveryExecution($executionId);
-        $session = $this->getTestSession($deliveryExecution);
-        //@todo find a way to report it even if the session does not exist
-        if ($session) {
-            $this->setTestVariable($session, 'TEST_IRREGULARITY', $reason);
-            return true;
-        }
-        return false;
+        $deliveryMonitoringData = $this->getDeliveryMonitoringService()->getData($executionId);
+        /* todo do not override irregularities */
+        $deliveryMonitoringData->add('TEST_IRREGULARITY', $reason, true);
+        return $this->getDeliveryMonitoringService()->save($deliveryMonitoringData);
     }
 
     /**
@@ -281,17 +243,14 @@ class DeliveryExecutionStateService extends ConfigurableService
     public function setProctoringState($executionId, $state, $reason = null)
     {
         $deliveryExecution = $this->getExecutionService()->getDeliveryExecution($executionId);
-        $stateService = $this->getExtendedStateService();
-        $proctoringState = $stateService->getValue($deliveryExecution, 'proctoring');
+        $deliveryExecution->setState($state);
 
-        $currentUser = \tao_models_classes_UserService::singleton()->getCurrentUser();
+        $deliveryMonitoringService = $this->getDeliveryMonitoringService();
 
-        $proctoringState['status'] = $state;
-        $proctoringState['reason'] = $reason;
-        if ($currentUser !== null && $state === self::STATE_AUTHORIZED) {
-            $proctoringState['authorized_by'] = $currentUser->getUri();
-        }
-        $stateService->setValue($deliveryExecution, 'proctoring', $proctoringState);
+        $deliveryMonitoringData = $deliveryMonitoringService->getData($deliveryExecution->getIdentifier());
+        $deliveryMonitoringData->add(DeliveryMonitoringService::STATUS, $state, true);
+        $deliveryMonitoringData->add('reason', $reason, true);
+        $deliveryMonitoringService->save($deliveryMonitoringData);
     }
 
     /**
@@ -301,13 +260,8 @@ class DeliveryExecutionStateService extends ConfigurableService
      */
     public function getProctoringState($executionId)
     {
-        $deliveryExecution = $this->getExecutionService()->getDeliveryExecution($executionId);
-        $stateService = $this->getExtendedStateService();
-        $proctoringState = $stateService->getValue($deliveryExecution, 'proctoring');
-
-        if (!isset($proctoringState['status'])) {
-            $proctoringState['status'] = null;
-        }
+        $deliveryMonitoringData = $this->getDeliveryMonitoringService()->getData($executionId);
+        $proctoringState = $deliveryMonitoringData->get();
 
         if (!isset($proctoringState['reason'])) {
             $proctoringState['reason'] = null;
@@ -437,13 +391,13 @@ class DeliveryExecutionStateService extends ConfigurableService
      * temporary helper until proper servicemanager integration
      * @return ExtendedStateService
      */
-    private function getExtendedStateService()
+    /*private function getExtendedStateService()
     {
         if (!isset($this->extendedStateService)) {
             $this->extendedStateService = new ExtendedStateService();
         }
         return $this->extendedStateService;
-    }
+    }*/
 
     /**
      * Sets a test variable with name automatic suffix
@@ -507,6 +461,15 @@ class DeliveryExecutionStateService extends ConfigurableService
      */
     private function setStorage(AbstractStorage $storage) {
         $this->storage = $storage;
+    }
+
+    /**
+     * Get delivery monitoring service
+     * @return DeliveryMonitoringService
+     */
+    private function getDeliveryMonitoringService()
+    {
+        return ServiceManager::getServiceManager()->get(DeliveryMonitoringService::CONFIG_ID);
     }
 
 }

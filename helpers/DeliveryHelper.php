@@ -78,13 +78,13 @@ class DeliveryHelper
                 /* @var $execution DeliveryExecution */
                 $executionState = $deliveryExecutionStateService->getState($execution);
                 switch($executionState){
-                    case DeliveryExecutionStateService::STATE_AWAITING:
+                    case DeliveryExecution::STATE_AWAITING:
                         $awaiting++;
                         break;
-                    case DeliveryExecutionStateService::STATE_INPROGRESS:
+                    case DeliveryExecution::STATE_ACTIVE:
                         $inprogress++;
                         break;
-                    case DeliveryExecutionStateService::STATE_PAUSED:
+                    case DeliveryExecution::STATE_PAUSED:
                         $paused++;
                         break;
                     default:

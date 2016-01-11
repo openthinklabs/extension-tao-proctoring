@@ -54,7 +54,7 @@ class DeliveryAuthorizationService extends ConfigurableService
         $securityKey = $this->getSecurityKey($deliveryExecution);
         common_Logger::i('Grant the proctor authorization, with security key: ' . $securityKey);
         PHPSession::singleton()->setAttribute(self::ACCESS_KEY_NAME, $securityKey);
-
+        /* todo save authorized_by here */
         return true;
     }
 
