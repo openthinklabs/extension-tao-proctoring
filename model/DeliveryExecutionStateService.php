@@ -230,6 +230,13 @@ class DeliveryExecutionStateService extends ConfigurableService
     {
         $deliveryMonitoringData = $this->getDeliveryMonitoringService()->getData($executionId);
         /* todo do not override irregularities */
+        $data = $deliveryMonitoringData->get();
+        if (!isset($data['TEST_IRREGULARITY'])) {
+            $testIrregularity = [];
+        } else {
+            $testIrregularity = $data['TEST_IRREGULARITY'];
+        }
+
         $deliveryMonitoringData->add('TEST_IRREGULARITY', $reason, true);
         return $this->getDeliveryMonitoringService()->save($deliveryMonitoringData);
     }
