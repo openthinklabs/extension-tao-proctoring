@@ -24,6 +24,7 @@ use oat\oatbox\service\ConfigurableService;
 use oat\taoQtiTest\models\TestSessionMetaData;
 use oat\taoDelivery\models\classes\execution\DeliveryExecution;
 
+
 /**
  * Class DeliveryExecutionStateService
  * @package oat\taoProctoring\model
@@ -173,14 +174,14 @@ class DeliveryExecutionStateService extends ConfigurableService implements \oat\
                 $testSessionMetaData = new TestSessionMetaData($session);
                 $testSessionMetaData->save(array(
                     'SECTION' => array(
-                        'SECTION_EXIT_CODE' => TestSessionMetaData::SECTION_CODE_FORCE_QUIT
+                        'SECTION_EXIT_CODE' => 705
                     ),
                     'TEST' => array(
-                        'TEST_EXIT_CODE' => TestSessionMetaData::TEST_CODE_TERMINATED,
+                        'TEST_EXIT_CODE' => 'T',
                     ),
                 ));
                 $this->getTestSessionService()->setTestVariable($session, 'TEST_TERMINATE', $reason);
-                $this->getTestSessionService()->setTestVariable($session, 'TEST_EXIT_CODE', TestSessionMetaData::TEST_CODE_TERMINATED);
+                $this->getTestSessionService()->setTestVariable($session, 'TEST_EXIT_CODE', 'T');
 
                 $session->endTestSession();
                 $this->getTestSessionService()->persist($session);
