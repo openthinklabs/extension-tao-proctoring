@@ -33,6 +33,7 @@ use oat\oatbox\service\ServiceManager;
 use oat\taoProctoring\model\execution\DeliveryExecution;
 use oat\taoProctoring\model\TestSessionConnectivityStatusService;
 use qtism\runtime\tests\AssessmentTestSession;
+use taoDelivery_models_classes_execution_DeliveryExecution;
 
 /**
  * class DeliveryMonitoringData
@@ -50,7 +51,7 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
     private $data = [];
 
     /**
-     * @var DeliveryExecution
+     * @var taoDelivery_models_classes_execution_DeliveryExecution
      */
     private $deliveryExecution;
 
@@ -77,10 +78,10 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
 
     /**
      * DeliveryMonitoringData constructor.
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      * @param bool $updateData
      */
-    public function __construct(DeliveryExecution $deliveryExecution, $updateData = true)
+    public function __construct(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution, $updateData = true)
     {
         $this->deliveryExecution = $deliveryExecution;
 
@@ -116,9 +117,9 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
 
     /**
      * Save delivery execution
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      */
-    public function setDeliveryExecution(DeliveryExecution $deliveryExecution)
+    public function setDeliveryExecution(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution)
     {
         $this->deliveryExecution = $deliveryExecution;
     }

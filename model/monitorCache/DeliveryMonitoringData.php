@@ -21,8 +21,8 @@
 
 namespace oat\taoProctoring\model\monitorCache;
 
-use oat\taoProctoring\model\execution\DeliveryExecution;
 use qtism\runtime\tests\AssessmentTestSession;
+use taoDelivery_models_classes_execution_DeliveryExecution;
 
 /**
  * Interface DeliveryMonitoringData
@@ -36,9 +36,9 @@ interface DeliveryMonitoringData
 {
     /**
      * Set delivery execution
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      */
-    public function setDeliveryExecution(DeliveryExecution $deliveryExecution);
+    public function setDeliveryExecution(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution);
 
     /**
      * Set test session

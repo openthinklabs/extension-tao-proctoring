@@ -26,7 +26,7 @@ use oat\taoProctoring\helpers\DeliveryHelper;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService as DeliveryMonitoringServiceInterface;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringData as DeliveryMonitoringDataInterface;
 use oat\oatbox\service\ConfigurableService;
-use oat\taoProctoring\model\execution\DeliveryExecution;
+use taoDelivery_models_classes_execution_DeliveryExecution;
 
 /**
  * Class DeliveryMonitoringService
@@ -94,11 +94,11 @@ class DeliveryMonitoringService extends ConfigurableService implements DeliveryM
     protected $primaryTableColumns;
 
     /**
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      * @param boolean $updateData whether DeliveryMonitoringData instance should be populated by data during instantiation.
      * @return DeliveryMonitoringDataInterface
      */
-    public function getData(DeliveryExecution $deliveryExecution, $updateData = true)
+    public function getData(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution, $updateData = true)
     {
         return new DeliveryMonitoringData($deliveryExecution, $updateData);
     }

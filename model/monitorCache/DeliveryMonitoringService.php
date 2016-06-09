@@ -21,7 +21,7 @@
 
 namespace oat\taoProctoring\model\monitorCache;
 
-use oat\taoProctoring\model\execution\DeliveryExecution;
+use taoDelivery_models_classes_execution_DeliveryExecution;
 
 /**
  * Interface DeliveryMonitoringService
@@ -51,10 +51,10 @@ interface DeliveryMonitoringService
     const CONNECTIVITY = 'last_connect';
 
     /**
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      * @return DeliveryMonitoringData
      */
-    public function getData(DeliveryExecution $deliveryExecution);
+    public function getData(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution);
 
     /**
      * @return DeliveryMonitoringData[]

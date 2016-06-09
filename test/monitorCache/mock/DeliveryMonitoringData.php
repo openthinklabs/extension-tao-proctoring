@@ -24,8 +24,8 @@ namespace oat\taoProctoring\test\monitorCache\mock;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringData as DeliveryMonitoringDataInterface;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
 use oat\oatbox\service\ServiceManager;
-use oat\taoProctoring\model\execution\DeliveryExecution;
 use qtism\runtime\tests\AssessmentTestSession;
+use taoDelivery_models_classes_execution_DeliveryExecution;
 
 /**
  * class DeliveryMonitoringData
@@ -43,7 +43,7 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
     private $data = [];
 
     /**
-     * @var DeliveryExecution
+     * @var taoDelivery_models_classes_execution_DeliveryExecution
      */
     private $deliveryExecution;
 
@@ -67,9 +67,9 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
 
     /**
      * DeliveryMonitoringData constructor.
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      */
-    public function __construct(DeliveryExecution $deliveryExecution)
+    public function __construct(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution)
     {
         $this->deliveryExecution = $deliveryExecution;
 
@@ -101,9 +101,9 @@ class DeliveryMonitoringData implements DeliveryMonitoringDataInterface
 
     /**
      * Save delivery execution
-     * @param DeliveryExecution $deliveryExecution
+     * @param taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution
      */
-    public function setDeliveryExecution(DeliveryExecution $deliveryExecution)
+    public function setDeliveryExecution(taoDelivery_models_classes_execution_DeliveryExecution $deliveryExecution)
     {
         $this->deliveryExecution = $deliveryExecution;
     }
