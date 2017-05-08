@@ -391,7 +391,7 @@ class DeliveryHelper
     private static function adjustDeliveryExecutions($deliveryExecutions, $options) {
 
         // paginate, then format the data
-        return DataTableHelper::paginate($deliveryExecutions, $options, function($deliveryExecutions) {
+        //return DataTableHelper::paginate($deliveryExecutions, $options, function($deliveryExecutions) {
             $testSessionConnectivityStatusService = ServiceManager::getServiceManager()->get(TestSessionConnectivityStatusService::SERVICE_ID);
 
             $executions = [];
@@ -438,7 +438,7 @@ class DeliveryHelper
             }
 
             return $executions;
-        });
+        //});
     }
 
     /**
