@@ -211,17 +211,11 @@ class Monitor extends SimplePageModule
         try {
 
             $result = DeliveryHelper::terminateExecutions($deliveryExecution, $reason);
-            //$notTerminated = array_diff($deliveryExecution, $terminated);
 
             $response = [
-                'success' => empty($result['unprocessed']),//!count($notTerminated),
+                'success' => empty($result['unprocessed']),
                 'data' => $result
             ];
-
-//            if (!$response['success']) {
-//                $response['errorCode'] = self::ERROR_TERMINATE_EXECUTIONS;
-//                $response['errorMsg'] = __('Some delivery executions have not been terminated');
-//            }
 
             $this->returnJson($response);
 
