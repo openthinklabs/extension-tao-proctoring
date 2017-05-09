@@ -170,13 +170,15 @@ class DeliveryHelper
     {
         $deliveryExecutionStateService = ServiceManager::getServiceManager()->get(DeliveryExecutionStateService::SERVICE_ID);
 
-        $result = array();
         foreach($deliveryExecutions as $deliveryExecution) {
             if (is_string($deliveryExecution)) {
                 $deliveryExecution = self::getDeliveryExecutionById($deliveryExecution);
             }
-            if ($deliveryExecutionStateService->terminateExecution($deliveryExecution, $reason)) {
-                $result[] = $deliveryExecution->getIdentifier();
+            try {
+                $deliveryExecutionStateService->terminateExecution($deliveryExecution, $reason);
+                $result['processed'][$deliveryExecution->getIdentifier()] = true;
+            } catch (\Exception $e) {
+                $result['unprocessed'][$deliveryExecution->getIdentifier()] = $e->getMessage();
             }
         }
 
