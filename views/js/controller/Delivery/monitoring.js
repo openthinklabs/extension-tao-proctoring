@@ -366,9 +366,6 @@ define([
                         formatted.allowed = (status.can[actionName] === true);
                         if(!formatted.allowed){
                             formatted.reason = status.can[actionName];
-                            formatted.warning = status.warning[actionName] ?
-                                status.warning[actionName](null, testTakerData.id) :
-                                __('Unable to perform action on test %s.', testTakerData.id);
                         }
                     }
                     if (testTakerData.timer) {
@@ -439,7 +436,11 @@ define([
                     });
 
                     if (!config.allowedResources.length) {
-                        feedback().warning(_status.buildWarningMessage(actionName, _selection, config.deniedResources));
+                        if (_selection.length > 1) {
+                            feedback().warning(__('No report available for these test sessions'));
+                        } else {
+                            feedback().warning(__('No report available for this test session'));
+                        }
                     } else {
                         bulkActionPopup(config).on('ok', function(reason){
                             //execute callback
