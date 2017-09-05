@@ -48,6 +48,7 @@ use oat\taoProctoring\model\authorization\TestTakerAuthorizationDelegator;
 use oat\taoProctoring\model\authorization\TestTakerAuthorizationInterface;
 use oat\taoProctoring\model\authorization\TestTakerAuthorizationService;
 use oat\taoProctoring\model\delivery\DeliveryPluginService;
+use oat\taoProctoring\model\delivery\DeliverySecurePluginsService;
 use oat\taoProctoring\model\delivery\DeliverySyncService;
 use oat\taoProctoring\model\execution\DeliveryExecutionManagerService;
 use oat\taoProctoring\model\execution\ProctoredSectionPauseService;
@@ -486,8 +487,13 @@ class Updater extends common_ext_ExtensionUpdater
         $this->skip('7.0.0', '7.1.1');
 
         if ($this->isVersion('7.1.1')) {
-            $this->getServiceManager()->register(DeliveryPluginService::SERVICE_ID, new DeliveryPluginService(['plugin_type' => 'taoProctoring']));
+            //$this->getServiceManager()->register(DeliveryPluginService::SERVICE_ID, new DeliveryPluginService(['plugin_type' => 'taoProctoring']));
             $this->setVersion('7.2.0');
+        }
+
+        if ($this->isVersion('7.2.0')) {
+            $this->getServiceManager()->register(DeliverySecurePluginsService::SERVICE_ID, new DeliverySecurePluginsService());
+            $this->setVersion('7.3.0');
         }
 
     }
