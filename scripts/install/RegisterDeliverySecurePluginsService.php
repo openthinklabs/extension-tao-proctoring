@@ -19,15 +19,15 @@
 namespace oat\taoProctoring\scripts\install;
 
 use oat\oatbox\extension\InstallAction;
-use oat\taoProctoring\model\delivery\DeliveryPluginService;
+use oat\taoProctoring\model\delivery\DeliverySecurePluginsService;
 
 /**
  * Installation action that registers the test runner container
  */
-class RegisterDeliveryPluginService extends InstallAction
+class RegisterDeliverySecurePluginsService extends InstallAction
 {
     public function __invoke($params)
     {
-        $this->registerService(DeliveryPluginService::SERVICE_ID, new DeliveryPluginService(['plugin_type' => 'taoProctoring']));
+        $this->registerService(DeliverySecurePluginsService::SERVICE_ID, new DeliverySecurePluginsService());
     }
 }

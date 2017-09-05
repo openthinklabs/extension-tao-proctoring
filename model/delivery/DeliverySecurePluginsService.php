@@ -21,20 +21,31 @@
  */
 namespace oat\taoProctoring\model\delivery;
 
-use oat\tao\model\plugins\PluginModule;
-use oat\taoDelivery\model\DeliveryPluginService as BaseDeliveryPluginService;
+use oat\taoDelivery\model\DeliverySecurePluginsService as BaseDeliveryPluginService;
+use oat\taoDelivery\model\execution\ServiceProxy;
 use oat\taoProctoring\model\ProctorService;
 
-class DeliveryPluginService extends BaseDeliveryPluginService
+class DeliverySecurePluginsService extends BaseDeliveryPluginService
 {
+    private $proctoredSecurePlugins = [
+        'blurPause',
+        'disableCommands',
+        'preventCopy',
+        'preventScreenshot',
+        'fullscreen'
+    ];
 
-    public function checkPlugin(PluginModule $plugin, \core_kernel_classes_Resource $delivery )
+    public function getPlugins()
     {
-        if ($this->isProctoredDelivery($delivery)) {
-            return in_array('taoProctoring', $plugin->getTags());
-        } else {
-            return in_array('taoDelivery', $plugin->getTags());
+        $deliveryExecutionUri = \Context::getInstance()->getRequest()->getParameter('deliveryExecution');
+
+        $filterPlugins = $this->deliverySecurePlugins;
+        if ($deliveryExecutionUri) {
+            $deliveryExecution = ServiceProxy::singleton()->getDeliveryExecution($deliveryExecutionUri);
+            $filterPlugins = $this->isProctoredDelivery($deliveryExecution->getDelivery()) ? $this->proctoredSecurePlugins : $this->deliverySecurePlugins;
         }
+
+        return $filterPlugins;
     }
 
     /**
