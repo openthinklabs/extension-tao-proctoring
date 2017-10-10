@@ -37,6 +37,18 @@ interface DeliveryLog
     const CREATED_BY = 'created_by';
 
     /**
+     * Get logged data filtered by date
+     * And optionally by event and delivery execution
+     *
+     * @param int $dateBegin
+     * @param int $dateEnd
+     * @param null|string $eventId
+     * @param null|string $deliveryExecutionId
+     * @return mixed
+     */
+    public function getByDate($dateBegin, $dateEnd , $eventId = null , $deliveryExecutionId = null);
+
+    /**
      * Log data
      *
      * @param string $deliveryExecutionId

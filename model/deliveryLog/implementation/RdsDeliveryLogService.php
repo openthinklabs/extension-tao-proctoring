@@ -72,6 +72,43 @@ class RdsDeliveryLogService extends ConfigurableService implements DeliveryLog
     }
 
     /**
+     *
+     * @param int $dateBegin
+     * @param int $dateEnd
+     * @param null $eventId
+     * @param null $deliveryExecutionId
+     * @return array
+     */
+    public function getByDate($dateBegin, $dateEnd , $eventId = null , $deliveryExecutionId = null) {
+
+        $parameters = [
+            $dateBegin,
+            $dateEnd
+        ];
+
+        $sql = "SELECT * FROM " . self::TABLE_NAME . " t " . PHP_EOL;
+        $sql .= "WHERE " . self::CREATED_AT . " BETWEEN ? AND ? ";
+
+        if ($eventId !== null) {
+            $sql .= "AND " . self::EVENT_ID . "=? ";
+            $parameters[] = $eventId;
+        }
+
+        if ($deliveryExecutionId !== null) {
+            $sql .= "AND " . self::DELIVERY_EXECUTION_ID . "=? ";
+            $parameters[] = $deliveryExecutionId;
+        }
+
+        $stmt = $this->getPersistence()->query($sql, $parameters);
+        $data = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        $result = $this->decodeValues($data);
+
+        return $result;
+
+    }
+
+    /**
      * Get logged data by delivery execution id
      *
      * @param string $deliveryExecutionId
