@@ -107,4 +107,12 @@ class ProctorService extends ConfigurableService implements ProctorServiceHandle
         return true;
     }
 
+    /**
+     * (non-PHPdoc)
+     * @see \oat\taoProctoring\model\ProctorServiceInterface::getAllSessionsEntry()
+     */
+    public function getAllSessionsEntry(User $proctor, $context = null)
+    {
+        return [];
+    }
 }

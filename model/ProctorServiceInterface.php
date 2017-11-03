@@ -33,6 +33,7 @@ interface ProctorServiceInterface
 
     /**
      * Gets all deliveries available for a proctor
+     *
      * @param User $proctor
      * @param string $context
      * @return \core_kernel_classes_Resource[] deliveries
@@ -51,7 +52,7 @@ interface ProctorServiceInterface
     public function getProctorableDeliveryExecutions(User $proctor, $delivery = null, $context = null, $options = []);
 
     /**
-     * Returns the ammount of delivery ececutions a proctor is allowed to administer.
+     * Returns the amount of delivery executions a proctor is allowed to administer.
      * Uses the same filtering options as getProctorableDeliveryExecutions
      *
      * @param User $proctor
@@ -61,4 +62,14 @@ interface ProctorServiceInterface
      * @return integer
      */
     public function countProctorableDeliveryExecutions(User $proctor, $delivery = null, $context = null, $options = []);
+
+    /**
+     * Return the data for "all sessions" entry point
+     *
+     * @param User $proctor
+     * @param string $context
+     * @return array
+     * @throws \common_exception_Error If the context is null
+     */
+    public function getAllSessionsEntry(User $proctor, $context = null);
 }

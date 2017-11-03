@@ -63,4 +63,13 @@ class ProctorServiceDelegator extends ServiceDelegator
         $deliveryId = $delivery ? $delivery->getUri() : null;
         return $this->getResponsibleService($proctor, $deliveryId)->countProctorableDeliveryExecutions($proctor, $delivery, $context, $options);
     }
+
+    /**
+     * (non-PHPdoc)
+     * @see \oat\taoProctoring\model\ProctorServiceInterface::getAllSessionsEntry()
+     */
+    public function getAllSessionsEntry(User $proctor, $context = null)
+    {
+        return $this->getResponsibleService($proctor)->getAllSessionsEntry($proctor, $context);
+    }
 }

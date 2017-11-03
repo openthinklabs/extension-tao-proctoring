@@ -36,7 +36,9 @@ class DeliverySelection extends SimplePageModule
 {
     /**
      * Lists all available deliveries
+     *
      * @return array
+     * @throws \common_exception_Error
      */
     protected function getDeliveries()
     {
@@ -44,8 +46,12 @@ class DeliverySelection extends SimplePageModule
         $proctor = \common_session_SessionManager::getSession()->getUser();
         $context = $this->hasRequestParameter('context') ? $this->getRequestParameter('context') : null;
         $deliveries = $service->getProctorableDeliveries($proctor, $context);
+
+        $all = $service->getAllSessionsEntry($proctor, $context);
+
         $data = array();
         foreach ($deliveries as $delivery) {
+
             $executions = $service->getProctorableDeliveryExecutions($proctor, $delivery, $context);
             $deliveryData = DeliveryHelper::buildDeliveryData($delivery, $executions);
             $deliveryData['url'] = _url('index', 'Monitor', null, is_null($context)
@@ -53,6 +59,16 @@ class DeliverySelection extends SimplePageModule
                 : ['delivery' => $delivery->getUri(), 'context' => $context]
             );
             $data[] = $deliveryData;
+
+            if (!empty($all)) {
+                $all['stats']['awaitingApproval'] += $deliveryData['stats']['awaitingApproval'];
+                $all['stats']['inProgress'] += $deliveryData['stats']['inProgress'];
+                $all['stats']['paused'] += $deliveryData['stats']['paused'];
+            }
+        }
+
+        if (!empty($all)) {
+            array_unshift($data, $all);
         }
 
         return $data;
