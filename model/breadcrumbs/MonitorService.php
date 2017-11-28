@@ -76,9 +76,11 @@ class MonitorService extends ConfigurableService implements Breadcrumbs
 
         $service = $this->getServiceManager()->get(ProctorService::SERVICE_ID);
         $proctor = \common_session_SessionManager::getSession()->getUser();
+        $all = $service->getAllSessionsEntry($proctor, $routeContext);
         $deliveries = $service->getProctorableDeliveries($proctor, $routeContext);
         $entries = array();
         $main = null;
+
         foreach ($deliveries as $delivery) {
             $deliveryId = $delivery->getUri();
             $crumb = [
