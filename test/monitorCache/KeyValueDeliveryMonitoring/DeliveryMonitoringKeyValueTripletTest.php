@@ -2,22 +2,21 @@
 
 namespace oat\taoProctoring\test\monitorCache\KeyValueDeliveryMonitoring;
 
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTriplet;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoring;
 
 class DeliveryMonitoringKeyValueTripletTest extends \PHPUnit_Framework_TestCase
 {
     public function testConstructor()
     {
-        $kvTriplet = new DeliveryMonitoringKeyValueTriplet('deliveryId', 'key1', 'value1');
-        $this->assertSame('deliveryId', $kvTriplet->getDeliveryId());
+        $kvTriplet = new KVDeliveryMonitoring('key1', 'value1');
         $this->assertSame('key1', $kvTriplet->getKey());
         $this->assertSame('value1', $kvTriplet->getValue());
     }
 
     public function testEquals()
     {
-        $kvTriplet = new DeliveryMonitoringKeyValueTriplet('deliveryId', 'key1', 'value1');
-        $kvTriplet2 = new DeliveryMonitoringKeyValueTriplet('deliveryId', 'key1', 'value2');
+        $kvTriplet = new KVDeliveryMonitoring('key1', 'value1');
+        $kvTriplet2 = new KVDeliveryMonitoring('key1', 'value2');
 
         $this->assertTrue($kvTriplet->equals($kvTriplet));
         $this->assertFalse($kvTriplet->equals($kvTriplet2));

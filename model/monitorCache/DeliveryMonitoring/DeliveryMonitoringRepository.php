@@ -24,6 +24,13 @@ interface DeliveryMonitoringRepository
     public function getPersistence();
 
     /**
+     * @param array $filters
+     * @param array $options
+     * @return array
+     */
+    public function search(array $filters = [], array $options = []);
+
+    /**
      * @param string $deliveryId
      * @return DeliveryMonitoringEntity
      */

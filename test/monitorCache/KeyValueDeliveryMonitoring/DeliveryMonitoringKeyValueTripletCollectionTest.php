@@ -2,26 +2,26 @@
 
 namespace oat\taoProctoring\test\monitorCache\KeyValueDeliveryMonitoring;
 
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTriplet;
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTripletCollection;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoring;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoringCollection;
 
 class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework_TestCase
 {
     public function testBuildCollection()
     {
-        $collection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $collection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'value1',
             'key2' => 'value2',
             'key3' => 'value3',
         ]);
 
-        $this->assertInstanceOf(DeliveryMonitoringKeyValueTripletCollection::class, $collection);
-        $this->assertInstanceOf(DeliveryMonitoringKeyValueTriplet::class, $collection->first());
+        $this->assertInstanceOf(KVDeliveryMonitoringCollection::class, $collection);
+        $this->assertInstanceOf(KVDeliveryMonitoring::class, $collection->first());
     }
 
     public function testToArray()
     {
-        $collection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $collection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'value1',
             'key2' => 'value2',
             'key3' => 'value3',
@@ -48,7 +48,7 @@ class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework
 
     public function testDiffToGetNewTriplets()
     {
-        $collection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $collection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'value1',
             'key2' => 'value2',
             'key3' => 'value3',
@@ -56,7 +56,7 @@ class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework
             'newKey1' => 'newValue1',
         ]);
 
-        $existingCollection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $existingCollection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'value1',
             'key2' => 'value2',
             'key3' => 'value3',
@@ -80,13 +80,13 @@ class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework
 
     public function testDiffToGetUpdatedTriplets()
     {
-        $collection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $collection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'updatedvalue1',
             'key2' => 'updatedvalue2',
             'key3' => 'value3',
         ]);
 
-        $existingCollection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $existingCollection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'value1',
             'key2' => 'value2',
             'key3' => 'value3',
@@ -110,7 +110,7 @@ class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework
 
     public function testMarkAsUpdatedTripletsByKeys()
     {
-        $collection = DeliveryMonitoringKeyValueTripletCollection::buildCollection('deliveryId', [
+        $collection = KVDeliveryMonitoringCollection::buildCollection('deliveryId', [
             'key1' => 'updatedvalue1',
             'key2' => 'updatedvalue2',
             'key3' => 'value3',
@@ -122,7 +122,7 @@ class DeliveryMonitoringKeyValueTripletCollectionTest extends \PHPUnit_Framework
         $collection = $collection->filter(function($entry) use ($idsToFilter) {
             return in_array($entry->getKey(), $idsToFilter);
         });
-        /** @var DeliveryMonitoringKeyValueTriplet $item */
+        /** @var KVDeliveryMonitoring $item */
         $item = $collection->first();
 
         $this->assertTrue($item->isSaved());

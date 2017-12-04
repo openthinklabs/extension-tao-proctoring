@@ -58,7 +58,7 @@ use oat\taoProctoring\model\implementation\TestRunnerMessageService;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoring\DeliveryMonitoringRdsRepository;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
 use oat\taoProctoring\model\monitorCache\implementation\MonitoringStorage;
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTripletRdsRepository;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoringRdsRepository;
 use oat\taoProctoring\model\monitorCache\update\TestUpdate;
 use oat\taoProctoring\model\ProctorService;
 use oat\taoProctoring\model\ProctorServiceDelegator;
@@ -547,17 +547,17 @@ class Updater extends common_ext_ExtensionUpdater
             ]);
             $this->getServiceManager()->register(DeliveryMonitoringRdsRepository::SERVICE_ID, $deliveryMonitoringSqlRepository);
 
-            $kvDeliveryMonitoringSqlRepository = new DeliveryMonitoringKeyValueTripletRdsRepository([
+            $kvDeliveryMonitoringSqlRepository = new KVDeliveryMonitoringRdsRepository([
                 DeliveryMonitoringRdsRepository::OPTION_PERSISTENCE => 'default'
             ]);
-            $this->getServiceManager()->register(DeliveryMonitoringKeyValueTripletRdsRepository::SERVICE_ID, $kvDeliveryMonitoringSqlRepository);
+            $this->getServiceManager()->register(KVDeliveryMonitoringRdsRepository::SERVICE_ID, $kvDeliveryMonitoringSqlRepository);
 
             $monitoringStorage = $this->getServiceManager()->get(MonitoringStorage::SERVICE_ID);
             $monitoringStorage->setOption(
                 MonitoringStorage::OPTION_DELIVERY_MONITORING_REPOSITORY, 'taoProctoring/DeliveryMonitoringRepository'
             );
             $monitoringStorage->setOption(
-                MonitoringStorage::OPTION_KV_DELIVERY_MONITORING_REPOSITORY, 'taoProctoring/DeliveryMonitoringKeyValueTripletRepository'
+                MonitoringStorage::OPTION_KV_DELIVERY_MONITORING_REPOSITORY, 'taoProctoring/KVDeliveryMonitoringRepository'
             );
 
             $this->getServiceManager()->register(MonitoringStorage::SERVICE_ID, $monitoringStorage);
