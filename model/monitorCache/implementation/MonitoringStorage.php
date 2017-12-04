@@ -30,8 +30,8 @@ use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringData as DeliveryMonitoringDataInterface;
 use oat\oatbox\service\ConfigurableService;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoring\DeliveryMonitoringFactory;
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTripletCollection;
-use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\DeliveryMonitoringKeyValueTripletRepository;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoringCollection;
+use oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring\KVDeliveryMonitoringRepository;
 
 /**
  * Class DeliveryMonitoringService
@@ -98,33 +98,21 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
     const DEFAULT_SORT_ORDER = 'ASC';
     const DEFAULT_SORT_TYPE = 'string';
 
-    protected $joins = [];
-    protected $queryParams = [];
-    protected $selectColumns = [];
-    protected $groupColumns = [];
-
-    /**
-     * @var DeliveryMonitoringData[]
-     */
-    protected $data = [];
-
     /**
      * (non-PHPdoc)
      * @see \oat\taoProctoring\model\monitorCache\DeliveryMonitoringService::getData()
      */
     public function getData(DeliveryExecutionInterface $deliveryExecution)
     {
-        $id = $deliveryExecution->getIdentifier();
-        if (!isset($this->data[$id])) {
-            $results = $this->find([
-                [self::DELIVERY_EXECUTION_ID => $deliveryExecution->getIdentifier()],
-            ], ['asArray' => true], true);
-            $data = empty($results) ? [] : $results[0];
-            $dataObject = new DeliveryMonitoringData($deliveryExecution, $data);
-            $this->getServiceManager()->propagate($dataObject);
-            $this->data[$id] = $dataObject;
-        }
-        return $this->data[$id];
+        $results = $this->find([
+            [self::DELIVERY_EXECUTION_ID => $deliveryExecution->getIdentifier()],
+        ], ['asArray' => true], true);
+
+        $data = empty($results) ? [] : $results[0];
+        $dataObject = new DeliveryMonitoringData($deliveryExecution, $data);
+        $this->getServiceManager()->propagate($dataObject);
+
+        return $dataObject;
     }
 
     /**
@@ -202,40 +190,19 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
      */
     public function find(array $criteria = [], array $options = [], $together = false)
     {
+
         $result = [];
-        $this->joins = [];
-        $this->queryParams = [];
-        $this->selectColumns = ['t.*'];
-        $this->groupColumns = ['t.delivery_execution_id'];
         $defaultOptions = [
             'order' => join(' ', [static::DEFAULT_SORT_COLUMN, static::DEFAULT_SORT_ORDER, static::DEFAULT_SORT_TYPE]),
             'offset' => 0,
-            'asArray' => false
+            'asArray' => false,
+            'group' => 'delivery_execution_id'
         ];
         $options = array_merge($defaultOptions, $options);
+        $options['order'] = $this->buildOrderStmt($options['order']);
 
-        $options['order'] = $this->prepareOrderStmt($options['order']);
-        $fromClause = "FROM " . self::TABLE_NAME . " t ";
 
-        $whereClause = $this->prepareCondition($criteria, $this->queryParams, $selectClause);
-        if ($whereClause !== '') {
-            $whereClause = 'WHERE ' . $whereClause;
-        }
-        $selectClause = "SELECT " . implode(',', $this->selectColumns);
-        $sql = $selectClause . ' ' . $fromClause . PHP_EOL .
-            implode(PHP_EOL, $this->joins) . PHP_EOL .
-            $whereClause . PHP_EOL .
-            'GROUP BY ' . implode(',', $this->groupColumns) . PHP_EOL;
-
-        $sql .= "ORDER BY " . $options['order'];
-
-        if (isset($options['limit']))  {
-            $sql = $this->getPersistence()->getPlatForm()->limitStatement($sql, $options['limit'], $options['offset']);
-        }
-
-        $stmt = $this->getPersistence()->query($sql, $this->queryParams);
-
-        $data = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $data = $this->getDeliveryMonitoringRepository()->search($criteria, $options);
 
         if ($together) {
             $ids = array_column($data, static::COLUMN_ID);
@@ -286,7 +253,6 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
     /**
      * @param DeliveryMonitoringDataInterface $deliveryMonitoring
      * @return boolean whether data is saved
-     * @throws \Doctrine\DBAL\ConnectionException
      */
     public function save(DeliveryMonitoringDataInterface $deliveryMonitoring)
     {
@@ -361,7 +327,7 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
             $id = $data[self::COLUMN_DELIVERY_EXECUTION_ID];
             $kvTableData = $this->extractKvData($data);
 
-            $newCollection = DeliveryMonitoringKeyValueTripletCollection::buildCollection($id, $kvTableData);
+            $newCollection = KVDeliveryMonitoringCollection::buildCollection($id, $kvTableData);
             if ($newCollection->isEmpty()) {
                 return;
             }
@@ -412,37 +378,56 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
         return $result;
     }
 
+    protected function buildFilters()
+    {
+
+    }
     /**
      * @param $order
+     * @param bool $kvSet
      * @return array
      */
-    protected function prepareOrderStmt($order)
+    protected function buildOrderStmt($order, $kvSet = false)
     {
         $order = explode(',', $order);
         $result = [];
         $primaryTableColumns = $this->getPrimaryColumns();
-        foreach ($order as $ruleNum => $orderRule) {
-            preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)\s?(asc|desc)?\s?(string|numeric)?/i', $orderRule, $ruleParts);
 
-            if (!in_array($ruleParts[1], $primaryTableColumns)) {
-                $colName = $ruleParts[1];
-                $joinNum = count($this->joins);
-                $this->joins[] = "LEFT JOIN " . self::KV_TABLE_NAME . " kv_t_$joinNum 
+        if ($kvSet) {
+
+            foreach ($order as $ruleNum => $orderRule) {
+                preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)\s?(asc|desc)?\s?(string|numeric)?/i', $orderRule, $ruleParts);
+
+                if (!in_array($ruleParts[1], $primaryTableColumns)) {
+                    $colName = $ruleParts[1];
+                    $joinNum = count($this->joins);
+                    $this->joins[] = "LEFT JOIN " . self::KV_TABLE_NAME . " kv_t_$joinNum 
                                   ON kv_t_$joinNum." . self::KV_COLUMN_PARENT_ID . " = t." . self::COLUMN_DELIVERY_EXECUTION_ID . "
                                   AND kv_t_$joinNum.monitoring_key = ?";
-                $this->queryParams[] = $colName;
-                $this->selectColumns[] = "kv_t_$joinNum.monitoring_value as $colName";
-                $this->groupColumns[] = "kv_t_$joinNum.monitoring_value";
+                    $this->queryParams[] = $colName;
+                    $this->selectColumns[] = "kv_t_$joinNum.monitoring_value as $colName";
+                    $this->groupColumns[] = "kv_t_$joinNum.monitoring_value";
 
-                $sortingColumn = "kv_t_$joinNum.monitoring_value";
-            } else {
-                $sortingColumn = $ruleParts[1];
+                    $sortingColumn = "kv_t_$joinNum.monitoring_value";
+                }
+
+                $result[] = isset($ruleParts[3]) && $ruleParts[3] === 'numeric'
+                    ? sprintf("cast(nullif(%s, '') as decimal) %s", $sortingColumn, $ruleParts[2])
+                    : sprintf('%s %s', $sortingColumn, isset($ruleParts[2]) ? $ruleParts[2] : 'ASC');
             }
+        } else {
+            foreach ($order as $ruleNum => $orderRule) {
+                preg_match('/([a-zA-Z_][a-zA-Z0-9_]*)\s?(asc|desc)?\s?(string|numeric)?/i', $orderRule, $ruleParts);
 
-            $result[] = isset($ruleParts[3]) && $ruleParts[3] === 'numeric'
-                ? sprintf("cast(nullif(%s, '') as decimal) %s", $sortingColumn, $ruleParts[2])
-                : sprintf('%s %s', $sortingColumn, isset($ruleParts[2]) ? $ruleParts[2] : 'ASC');
+                $sortingColumn = $ruleParts[1];
+
+                $result[] = isset($ruleParts[3]) && $ruleParts[3] === 'numeric'
+                    ? sprintf("cast(nullif(%s, '') as decimal) %s", $sortingColumn, $ruleParts[2])
+                    : sprintf('%s %s', $sortingColumn, isset($ruleParts[2]) ? $ruleParts[2] : 'ASC');
+            }
         }
+
+
 
         $result = implode(', ', $result);
 
@@ -510,14 +495,10 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
         if (empty($ids)) {
             return [];
         }
-        $result = [];
-        $sql = 'SELECT * FROM ' . self::KV_TABLE_NAME . '
-                WHERE ' . self::KV_COLUMN_PARENT_ID . ' IN(' . join(',', array_map(function(){ return '?'; }, $ids)) . ')';
-        $secondaryData = $this->getPersistence()->query($sql, $ids)->fetchAll(\PDO::FETCH_ASSOC);
 
-        foreach ($secondaryData as $data) {
-            $result[$data[self::KV_COLUMN_PARENT_ID]][$data[self::KV_COLUMN_KEY]] = $data[self::KV_COLUMN_VALUE];
-        }
+        $result = $this->getKvDeliveryMonitoringRepository()->searchDeliveryKVCollections([
+            self::KV_COLUMN_PARENT_ID => $ids
+        ]);
 
         return $result;
     }
@@ -602,11 +583,11 @@ class MonitoringStorage extends ConfigurableService implements DeliveryMonitorin
     }
 
     /**
-     * @return DeliveryMonitoringKeyValueTripletRepository
+     * @return KVDeliveryMonitoringRepository
      */
     protected function getKvDeliveryMonitoringRepository()
     {
-        /** @var DeliveryMonitoringKeyValueTripletRepository $service */
+        /** @var KVDeliveryMonitoringRepository $service */
         $service = $this->getServiceManager()->get($this->getOption(self::OPTION_KV_DELIVERY_MONITORING_REPOSITORY));
         return $service;
     }

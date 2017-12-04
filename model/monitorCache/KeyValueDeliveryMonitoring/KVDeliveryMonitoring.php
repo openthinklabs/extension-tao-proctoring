@@ -2,11 +2,8 @@
 
 namespace oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring;
 
-class DeliveryMonitoringKeyValueTriplet
+class KVDeliveryMonitoring
 {
-    /** @var string */
-    private $deliveryId;
-
     /** @var string */
     private $key;
 
@@ -21,19 +18,10 @@ class DeliveryMonitoringKeyValueTriplet
      * @param string $key
      * @param string $value
      */
-    public function __construct($deliveryId, $key, $value)
+    public function __construct( $key, $value)
     {
-        $this->deliveryId = $deliveryId;
         $this->key = $key;
         $this->value = $value;
-    }
-
-    /**
-     * @return string
-     */
-    public function getDeliveryId()
-    {
-        return $this->deliveryId;
     }
 
     /**
@@ -53,24 +41,22 @@ class DeliveryMonitoringKeyValueTriplet
     }
 
     /**
-     * @param DeliveryMonitoringKeyValueTriplet $triplet
+     * @param KVDeliveryMonitoring $kvDM
      * @return bool
      */
-    public function hasSameKey(DeliveryMonitoringKeyValueTriplet $triplet)
+    public function hasSameKey(KVDeliveryMonitoring $kvDM)
     {
-        return $this->deliveryId === $triplet->getDeliveryId()
-            && $this->key === $triplet->getKey();
+        return $this->key === $kvDM->getKey();
     }
 
     /**
-     * @param DeliveryMonitoringKeyValueTriplet $triplet
+     * @param KVDeliveryMonitoring $kvDM
      * @return bool
      */
-    public function equals(DeliveryMonitoringKeyValueTriplet $triplet)
+    public function equals(KVDeliveryMonitoring $kvDM)
     {
-        return $this->deliveryId === $triplet->getDeliveryId()
-                && $this->key === $triplet->getKey()
-                && $this->value === $triplet->getValue();
+        return $this->key === $kvDM->getKey()
+                && $this->value === $kvDM->getValue();
     }
 
     /**

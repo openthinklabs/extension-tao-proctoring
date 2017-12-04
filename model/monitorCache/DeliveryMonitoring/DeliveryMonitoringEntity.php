@@ -2,6 +2,8 @@
 
 namespace oat\taoProctoring\model\monitorCache\DeliveryMonitoring;
 
+use oat\taoProctoring\model\monitorCache\implementation\MonitoringStorage;
+
 class DeliveryMonitoringEntity
 {
     /** @var string */
@@ -45,4 +47,19 @@ class DeliveryMonitoringEntity
     {
         return $this->id === $otherEntity->id && $this->dataAttributes === $otherEntity->getDataAttributes();
     }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        $array[MonitoringStorage::DELIVERY_EXECUTION_ID] = $this->id;
+
+        foreach ($this->dataAttributes as $attribute => $dataAttribute) {
+            $array[$attribute] = $dataAttribute;
+        }
+
+        return $array;
+    }
+
 }

@@ -3,8 +3,12 @@
 namespace oat\taoProctoring\model\monitorCache\DeliveryMonitoring;
 
 use common_persistence_SqlPersistence;
+use Doctrine\Common\Collections\Criteria;
+use Doctrine\DBAL\Connection;
+
 use oat\oatbox\service\ConfigurableService;
 use oat\taoProctoring\model\monitorCache\implementation\MonitoringStorage;
+use tao_helpers_Array;
 
 class DeliveryMonitoringRdsRepository extends ConfigurableService implements DeliveryMonitoringRepository
 {
@@ -12,11 +16,16 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
 
     const OPTION_PERSISTENCE = 'persistence';
 
+    const OPTION_CACHE_LAYER = 'cache_layer';
+
     /** @var DeliveryMonitoringFactory */
     private $monitoringFactory;
 
-    /** @var bool */
-    private $exists;
+    /** @var array */
+    private $filtersUsed;
+
+    /** @var array */
+    private $optionsUsed;
 
     /**
      * @return common_persistence_SqlPersistence
@@ -29,11 +38,52 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
     }
 
     /**
+     * @return CollectionCacheInterface
+     */
+    public function getCacheLayer()
+    {
+        return $this->getOption(self::OPTION_CACHE_LAYER);
+    }
+
+    /**
+     * @param array $filters
+     * @param array $options
+     * @return array
+     */
+    public function search(array $filters = [], array $options = [])
+    {
+        if ($this->filtersUsed !== $filters
+            || $this->optionsUsed !== $options) {
+            $this->getCacheLayer()->reset();
+        }
+
+        /** @var DeliveryMonitoringCollection $collection */
+        if ($collection = $this->getCacheLayer()->fetchCollection()) {
+            return $collection->toArray();
+        }
+
+        $this->filtersUsed = $filters;
+        $this->optionsUsed = $options;
+
+        $qb = $this->buildQuery($filters, $options);
+        $result = $qb->execute()->fetchAll();
+
+        $collection = DeliveryMonitoringCollection::buildCollection($result, $this->monitoringFactory);
+        $this->getCacheLayer()->saveCollection($collection);
+
+        return $collection->toArray();
+    }
+
+    /**
      * @param string $deliveryId
      * @return DeliveryMonitoringEntity
      */
     public function find($deliveryId)
     {
+        if ($entity = $this->getCacheLayer()->findEntity($deliveryId)) {
+            return $entity;
+        }
+
         $queryBuilder = $this->getPersistence()->getPlatform()->getQueryBuilder();
         $columns = $this->monitoringFactory->getColumns();
 
@@ -45,7 +95,9 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
 
         $delivery = $qb->execute()->fetch();
 
-        return $this->monitoringFactory->buildEntityFromRawArray($delivery);
+        $deliveryEntity = $this->monitoringFactory->buildEntityFromRawArray($delivery);
+
+        $this->getCacheLayer()->addEntity($deliveryEntity);
     }
 
     /**
@@ -66,6 +118,7 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
         $qb->setParameter(MonitoringStorage::COLUMN_DELIVERY_EXECUTION_ID, $entity->getId());
         $qb->execute();
 
+        $this->getCacheLayer()->updateEntity($entity);
         return true;
     }
 
@@ -78,8 +131,7 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
         $dataAttributes = $entity->getDataAttributes();
 
         $this->getPersistence()->insert(static::TABLE_NAME, $dataAttributes);
-
-        $this->exists = true;
+        $this->getCacheLayer()->addEntity($entity);
 
         return true;
     }
@@ -90,8 +142,8 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
      */
     public function exists($deliveryId)
     {
-        if (!is_null($this->exists)) {
-            return $this->exists;
+        if ($this->getCacheLayer()->entityExists($deliveryId)) {
+            return true;
         }
 
         $sql = 'SELECT 
@@ -100,8 +152,6 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
                 WHERE '. MonitoringStorage::COLUMN_DELIVERY_EXECUTION_ID . '=?)';
 
         $exists = $this->getPersistence()->query($sql, [$deliveryId])->fetch(\PDO::FETCH_COLUMN);
-
-        $this->exists = $exists;
 
         return (bool)$exists;
     }
@@ -120,5 +170,60 @@ class DeliveryMonitoringRdsRepository extends ConfigurableService implements Del
     public function getMonitoringFactory()
     {
         return  $this->monitoringFactory ;
+    }
+
+    /**
+     * @param array $filters
+     * @param array $options
+     *
+     * @return \Doctrine\DBAL\Query\QueryBuilder
+     */
+    protected function buildQuery(array $filters = [], array $options = [])
+    {
+        $queryBuilder = $this->getPersistence()->getPlatform()->getQueryBuilder();
+        $columns = $this->monitoringFactory->getColumns();
+
+        $qb = $queryBuilder
+            ->select(implode(', ', $columns))
+            ->from(static::TABLE_NAME);
+
+        foreach($filters as $key => $filter) {
+            if (!tao_helpers_Array::isAssoc($filter)) {
+                $qb->where($key . ' IN (:'.$key.')')->setParameter(':'.$key, $filter, Connection::PARAM_STR_ARRAY);
+            } else {
+                foreach ($filter as $column => $value) {
+                    if (!in_array($column, $columns)) {
+                        continue;
+                    }
+                    $operator = '=';
+                    if (preg_match('/^(?:\s*(<>|<=|>=|<|>|=|LIKE|ILIKE|NOT\sLIKE|NOT\sILIKE))?(.*)$/', $value, $matches)) {
+                        $value = $matches[2];
+                        $operator = $matches[1] ? $matches[1] : "=";
+                    }
+                    $qb->where($column . $operator .':'.$column)->setParameter(':'.$column, $value);
+                }
+            }
+        }
+
+        if (isset($options['limit'])) {
+            $qb->setMaxResults(intval($options['limit']));
+        }
+
+        if (isset($options['offset'])) {
+            $qb->setFirstResult(intval($options['offset']));
+        }
+
+        if (isset($options['group']) && in_array($options['group'], $columns)) {
+            $qb->groupBy($options['group']);
+        }
+
+        if (isset($options['order'])) {
+            $parts = explode(' ', $options['order']);
+            if (in_array($parts[0], $columns)) {
+                $qb->addOrderBy($parts[0], $parts[1]);
+            }
+        }
+
+        return $qb;
     }
 }

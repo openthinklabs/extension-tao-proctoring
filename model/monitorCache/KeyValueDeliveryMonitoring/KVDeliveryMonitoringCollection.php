@@ -5,22 +5,44 @@ namespace oat\taoProctoring\model\monitorCache\KeyValueDeliveryMonitoring;
 use Doctrine\Common\Collections\ArrayCollection;
 use oat\taoProctoring\model\monitorCache\implementation\MonitoringStorage;
 
-class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
+class KVDeliveryMonitoringCollection extends ArrayCollection
 {
+    /** @var $deliveryId */
+    private $deliveryId;
+
+    /**
+     * KVDeliveryMonitoringCollection constructor.
+     * @param string $deliveryId
+     * @param array $elements
+     */
+    public function __construct($deliveryId, array $elements = array())
+    {
+        $this->deliveryId = $deliveryId;
+        parent::__construct($elements);
+    }
+
     /**
      * @param string $deliveryId
      * @param array $rawData
-     * @return DeliveryMonitoringKeyValueTripletCollection
+     * @return KVDeliveryMonitoringCollection
      */
     public static function buildCollection($deliveryId, array $rawData)
     {
-        $collection = new static();
+        $collection = new static($deliveryId);
 
         foreach ($rawData as $key => $value) {
-            $collection->add(new DeliveryMonitoringKeyValueTriplet($deliveryId, $key, $value));
+            $collection->add(new KVDeliveryMonitoring($key, $value));
         }
 
         return $collection;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDeliveryId()
+    {
+        return $this->deliveryId;
     }
 
     /**
@@ -29,10 +51,10 @@ class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
     public function toArray()
     {
         $array = [];
-        /** @var DeliveryMonitoringKeyValueTriplet $item */
+        /** @var KVDeliveryMonitoring $item */
         foreach ($this->getIterator() as $item) {
             $array[] = [
-                MonitoringStorage::KV_COLUMN_PARENT_ID => $item->getDeliveryId(),
+                MonitoringStorage::KV_COLUMN_PARENT_ID => $this->getDeliveryId(),
                 MonitoringStorage::KV_COLUMN_KEY => $item->getKey(),
                 MonitoringStorage::KV_COLUMN_VALUE => $item->getValue(),
             ];
@@ -42,22 +64,46 @@ class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
     }
 
     /**
-     * @param DeliveryMonitoringKeyValueTripletCollection $existedCollection
-     * @return DeliveryMonitoringKeyValueTripletCollection
+     * @return array
      */
-    public function diffToGetNewTriplets(DeliveryMonitoringKeyValueTripletCollection $existedCollection)
+    public function getInformationToStore()
+    {
+        $array = [];
+        $keysUpdated = [];
+        /** @var KVDeliveryMonitoring $item */
+        foreach ($this->getIterator() as $item) {
+            $keysUpdated[] = $item->getKey();
+            $array[] = [
+                'conditions' => [
+                    MonitoringStorage::KV_COLUMN_PARENT_ID => $this->getDeliveryId(),
+                    MonitoringStorage::KV_COLUMN_KEY => $item->getKey(),
+                ],
+                'updateValues' => [
+                    MonitoringStorage::KV_COLUMN_VALUE => $item->getValue()
+                ]
+            ];
+        }
+
+        return [$keysUpdated, $array];
+    }
+
+    /**
+     * @param KVDeliveryMonitoringCollection $existedCollection
+     * @return KVDeliveryMonitoringCollection
+     */
+    public function diffToGetNewTriplets(KVDeliveryMonitoringCollection $existedCollection)
     {
         if ($existedCollection->isEmpty()) {
-            return new static($this->getIterator()->getArrayCopy());
+            return new static($this->deliveryId, $this->getIterator()->getArrayCopy());
         }
 
         $copyArray = $this->getIterator()->getArrayCopy();
         $copyArrayToCompare = $existedCollection->getIterator()->getArrayCopy();
 
-        /** @var DeliveryMonitoringKeyValueTriplet $item */
+        /** @var KVDeliveryMonitoring $item */
         foreach ($copyArray as $key => $item){
 
-            /** @var DeliveryMonitoringKeyValueTriplet $compareItem */
+            /** @var KVDeliveryMonitoring $compareItem */
             foreach ($copyArrayToCompare as $key2 => $compareItem) {
                 if ($item->hasSameKey($compareItem)) {
                     unset($copyArray[$key]);
@@ -67,26 +113,26 @@ class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
             }
         }
 
-        return new static($copyArray);
+        return new static($this->deliveryId, $copyArray);
     }
 
     /**
-     * @param DeliveryMonitoringKeyValueTripletCollection $existedCollection
+     * @param KVDeliveryMonitoringCollection $existedCollection
      *
-     * @return DeliveryMonitoringKeyValueTripletCollection
+     * @return KVDeliveryMonitoringCollection
      */
-    public function diffToGetUpdatedTriplets(DeliveryMonitoringKeyValueTripletCollection $existedCollection)
+    public function diffToGetUpdatedTriplets(KVDeliveryMonitoringCollection $existedCollection)
     {
         if ($existedCollection->isEmpty()) {
-            return new static($this->getIterator()->getArrayCopy());
+            return new static($this->deliveryId, $this->getIterator()->getArrayCopy());
         }
 
         $copyArray = $this->getIterator()->getArrayCopy();
         $copyArrayToCompare = $existedCollection->getIterator()->getArrayCopy();
 
-        /** @var DeliveryMonitoringKeyValueTriplet $item */
+        /** @var KVDeliveryMonitoring $item */
         foreach ($copyArray as $key => $item){
-            /** @var DeliveryMonitoringKeyValueTriplet $compareItem */
+            /** @var KVDeliveryMonitoring $compareItem */
             foreach ($copyArrayToCompare as $key2 => $compareItem) {
                 if ($item->equals($compareItem) || $compareItem->isSaved()) {
                     unset($copyArray[$key]);
@@ -98,11 +144,10 @@ class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
                     unset($copyArrayToCompare[$key2]);
                     continue 2;
                 }
-
             }
         }
 
-        return new static($copyArray);
+        return new static($this->deliveryId, $copyArray);
     }
 
     /**
@@ -110,7 +155,7 @@ class DeliveryMonitoringKeyValueTripletCollection extends ArrayCollection
      */
     public function markAsUpdatedTripletsByKeys(array $keys)
     {
-        /** @var  DeliveryMonitoringKeyValueTriplet $item */
+        /** @var  KVDeliveryMonitoring $item */
         foreach ($this as $index => $item){
             if (in_array($item->getKey(), $keys)) {
                 $item->setSaved(true);
