@@ -75,7 +75,7 @@ use oat\taoQtiTest\models\event\QtiTestStateChangeEvent;
 use oat\taoTests\models\event\TestChangedEvent;
 use oat\taoTests\models\event\TestExecutionPausedEvent;
 use oat\taoEventLog\model\LoggerService;
-
+use oat\tao\model\event\BeforeAction;
 
 /**
  *
@@ -546,6 +546,14 @@ class Updater extends common_ext_ExtensionUpdater
             $service->setOptions($options);
             $this->getServiceManager()->register(ActivityMonitoringService::SERVICE_ID, $service);
             $this->setVersion('7.12.0');
+        }
+
+        if ($this->isVersion('7.12.0')) {
+            /** @var ActivityMonitoringService $service */
+            $eventManager = $this->getServiceManager()->get(EventManager::SERVICE_ID);
+            $eventManager->attach(BeforeAction::class, [ActivityMonitoringService::SERVICE_ID, 'catchBeforeActionEvent']);
+            $this->getServiceManager()->register(EventManager::SERVICE_ID, $eventManager);
+            $this->setVersion('7.13.0');
         }
 
     }

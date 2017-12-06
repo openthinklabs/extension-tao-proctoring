@@ -24,6 +24,8 @@ use oat\oatbox\extension\InstallAction;
 use oat\taoProctoring\model\implementation\DeliveryExecutionStateService;
 use \oat\taoDelivery\model\execution\StateServiceInterface;
 use oat\taoProctoring\model\ActivityMonitoringService;
+use oat\tao\model\event\BeforeAction;
+use oat\oatbox\event\EventManager;
 
 /**
  * Action to register necessary extension services
@@ -49,6 +51,10 @@ class RegisterServices extends InstallAction
             ActivityMonitoringService::OPTION_ACTIVE_USER_THRESHOLD => 300,
         ]);
         $this->getServiceManager()->register(ActivityMonitoringService::SERVICE_ID, $activityMonitoringService);
+
+        $eventManager = $this->getServiceManager()->get(EventManager::SERVICE_ID);
+        $eventManager->attach(BeforeAction::class, [ActivityMonitoringService::SERVICE_ID, 'catchBeforeActionEvent']);
+        $this->getServiceManager()->register(EventManager::SERVICE_ID, $eventManager);
 
     }
 }

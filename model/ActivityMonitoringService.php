@@ -26,6 +26,9 @@ use oat\oatbox\service\ConfigurableService;
 use oat\taoProctoring\model\execution\DeliveryExecution;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
 use oat\taoEventLog\model\requestLog\RequestLogStorage;
+use oat\tao\model\event\BeforeAction;
+use oat\taoEventLog\model\userActivityLog\rds\UserActivityLogStorage;
+use GuzzleHttp\Psr7\ServerRequest;
 
 /**
  * Service to manage and monitor assessment activity
@@ -82,6 +85,8 @@ class ActivityMonitoringService extends ConfigurableService
     const LABEL_RETIRED_DELIVERIES = 'Retired Deliveries';
 
     const GROUPFIELD_USER_ACTIVITY = 'group_user_activity';
+
+    const PHP_SESSION_LAST_ACTIVITY = 'tao_user_last_activity_timestamp';
 
     /**
      * @var array list of all the statuses uris
@@ -296,5 +301,29 @@ class ActivityMonitoringService extends ConfigurableService
         }
 
         return $list;
+    }
+
+    /**
+     * @param BeforeAction $event
+     * @throws
+     */
+    public function catchBeforeActionEvent(BeforeAction $event)
+    {
+        $phpSession = \PHPSession::singleton();
+        $lastStoredActivity = null;
+        if ($phpSession->hasAttribute(self::PHP_SESSION_LAST_ACTIVITY)) {
+            $lastStoredActivity = $phpSession->getAttribute(self::PHP_SESSION_LAST_ACTIVITY);
+        }
+
+        $threshold = $this->getOption(self::OPTION_ACTIVE_USER_THRESHOLD);
+
+        if (!$lastStoredActivity || microtime(true) > ($lastStoredActivity + $threshold)) {
+            $user = \common_session_SessionManager::getSession()->getUser();
+            $userActivityLog = $this->getServiceManager()->get(UserActivityLogStorage::SERVICE_ID);
+            $request = ServerRequest::fromGlobals();
+            $phpSession->setAttribute(self::PHP_SESSION_LAST_ACTIVITY, microtime(true));
+            /** @var UserActivityLogStorage $userActivityLog */
+            $userActivityLog->log($user, $request->getUri());
+        }
     }
 }
