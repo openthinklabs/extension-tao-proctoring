@@ -27,6 +27,8 @@ use oat\taoProctoring\model\monitorCache\implementation\MonitoringStorage;
 use oat\taoProctoring\model\Tasks\DeliveryUpdaterTask;
 use oat\taoProctoring\scripts\install\db\DbSetup;
 use oat\generis\test\TestCase;
+use Zend\ServiceManager\ServiceLocatorInterface;
+use oat\taoProctoring\model\monitorCache\DeliveryMonitoringData;
 
 
 /**
@@ -36,85 +38,83 @@ use oat\generis\test\TestCase;
  */
 class UpdaterDeliveryTest extends TestCase
 {
-    /**
-     * @var MonitoringStorage
-     */
-    protected $deliveryMonitoringService;
-
-    /**
-     * @var DeliveryUpdaterTask
-     */
-    protected $deliveryUpdaterTask;
-
-    protected $persistence;
-
-    protected $pmMock;
-
     /** @var string  */
-    protected $deliveryExecutionId = 'http://sample/first.rdf#i1450191587554175_test_record';
+    const DELIVERY_ID = 'http://sample/first.rdf#i1450191587554175_test_record';
 
     /**
      * Test the UpdateDelivery task for updating labels
      */
     public function testUpdateDeliveryLabels()
     {
-        $this->loadFixture();
+        $monitoringService = $this->getMonitoringStorage();
+        $this->loadFixture($monitoringService);
+        
+        $deliveryUpdaterTask = new DeliveryUpdaterTask();
+        $sl = $this->prophesize(ServiceLocatorInterface::class);
+        $sl->get(DeliveryMonitoringService::SERVICE_ID)->willReturn($monitoringService);
+        $deliveryUpdaterTask->setServiceLocator($sl->reveal());
 
-        $update = $this->getDeliveryUpdaterTask()->updateDeliveryLabels('http://sample/first.rdf#i1450191587554180_test_record', 'Delivery test 2');
+        $update = $deliveryUpdaterTask->updateDeliveryLabels(self::DELIVERY_ID, 'Delivery test 2');
         $this->assertTrue($update);
 
-        $result = $this->getDeliveryMonitoringService()->find([
-            [MonitoringStorage::DELIVERY_ID => 'http://sample/first.rdf#i1450191587554180_test_record'],
+        $result = $monitoringService->find([
+            [MonitoringStorage::DELIVERY_ID => self::DELIVERY_ID],
         ]);
         $this->assertEquals(count($result), 1);
         $this->assertEquals($result[0]->get()[MonitoringStorage::DELIVERY_NAME], 'Delivery test 2', 1);
     }
-
+    
+    
+    /**
+     * Init DeliveryMonitoring Service
+     */
+    protected function getMonitoringStorage()
+    {
+        $pmMock = $this->getSqlMock('test_monitoring');
+        $persistence = $pmMock->getPersistenceById('test_monitoring');
+        DbSetup::generateTable($persistence);
+        $slPm = $this->prophesize(ServiceLocatorInterface::class);
+        $slPm->get(\common_persistence_Manager::SERVICE_ID)->willReturn($pmMock);
+        
+        $deliveryMonitoringService = new MonitoringStorage([
+            MonitoringStorage::OPTION_PERSISTENCE => 'test_monitoring',
+            MonitoringStorage::OPTION_PRIMARY_COLUMNS => array(
+                'delivery_execution_id',
+                'status',
+                'current_assessment_item',
+                'test_taker',
+                'authorized_by',
+                'start_time',
+                'end_time',
+                'delivery_name',
+                'delivery_id'
+            )
+        ]);
+        $deliveryMonitoringService->setServiceLocator($slPm->reveal());
+        return $deliveryMonitoringService;
+    }
+    
     /**
      * Load fixtures for delivery monitoring table
+     * @param DeliveryMonitoringService
      * @return array
      */
-    protected function loadFixture()
+    protected function loadFixture(DeliveryMonitoringService $deliveryMonitoringService)
     {
-        $data = [
-            [
-                MonitoringStorage::COLUMN_DELIVERY_EXECUTION_ID => 'http://sample/first.rdf#i1450191587554175_test_record',
-                MonitoringStorage::COLUMN_TEST_TAKER => 'test_taker_1',
-                MonitoringStorage::COLUMN_STATUS => 'active_test',
-                OntologyDeliveryExecution::PROPERTY_SUBJECT => 'http://sample/first.rdf#i1450191587554175_test_user',
-                MonitoringStorage::DELIVERY_NAME => 'Delivery test 1',
-                MonitoringStorage::DELIVERY_ID => 'http://sample/first.rdf#i1450191587554180_test_record',
-            ]
-        ];
-
-        foreach ($data as $item) {
-            $dataModel = $this->getDeliveryMonitoringService()->getData($this->getDeliveryExecution($item[MonitoringStorage::DELIVERY_EXECUTION_ID]));
-            foreach ($item as $key => $val) {
-                $dataModel->addValue($key, $val);
-            }
-            $this->getDeliveryMonitoringService()->save($dataModel);
-        }
-
-        return [
-            [$data],
-        ];
+        $data = $this->prophesize(DeliveryMonitoringData::class);
+        $data->get()->willReturn([
+            MonitoringStorage::COLUMN_DELIVERY_EXECUTION_ID => 'http://sample/first.rdf#i1450192587555880_test_record',
+            MonitoringStorage::COLUMN_TEST_TAKER => 'test_taker_1',
+            MonitoringStorage::COLUMN_STATUS => 'active_test',
+            OntologyDeliveryExecution::PROPERTY_SUBJECT => 'http://sample/first.rdf#i1450191587554175_test_user',
+            MonitoringStorage::DELIVERY_NAME => 'Delivery test 1',
+            MonitoringStorage::DELIVERY_ID => self::DELIVERY_ID,
+        ]);
+        $data->validate()->willReturn(true);
+        $deliveryMonitoringService->save($data->reveal());
     }
-
-    /**
-     * @param null $id
-     * @return object
-     */
-    protected function getDeliveryExecution($id = null)
-    {
-        if ($id === null) {
-            $id = $this->deliveryExecutionId;
-        }
-        $prophet = new \Prophecy\Prophet();
-        $deliveryExecutionProphecy = $prophet->prophesize('oat\taoDelivery\model\execution\DeliveryExecution');
-        $deliveryExecutionProphecy->getIdentifier()->willReturn($id);
-        return $deliveryExecutionProphecy->reveal();
-    }
-
+    
+    
     /**
      * Returns a persistence Manager with a mocked sql persistence
      *
@@ -133,78 +133,5 @@ class UpdaterDeliveryTest extends TestCase
         $pmProphecy->getPersistenceById($key)->willReturn($persistence);
         return $pmProphecy->reveal();
     }
-
-    /**
-     * Init Persistence with mock.
-     */
-    protected function initPersistence()
-    {
-        $this->pmMock = $this->getSqlMock('test_monitoring');
-        $this->persistence = $this->pmMock->getPersistenceById('test_monitoring');
-        DbSetup::generateTable($this->persistence);
-
-    }
-
-    /**
-     * Init DeliveryMonitoring Service
-     */
-    protected function initDeliveryMonitoringService()
-    {
-        $this->deliveryMonitoringService = new MonitoringStorage([
-            MonitoringStorage::OPTION_PERSISTENCE => 'test_monitoring',
-            MonitoringStorage::OPTION_PRIMARY_COLUMNS => array(
-                'delivery_execution_id',
-                'status',
-                'current_assessment_item',
-                'test_taker',
-                'authorized_by',
-                'start_time',
-                'end_time',
-                'delivery_name',
-                'delivery_id'
-            )
-        ]);
-
-        $this->initPersistence();
-        $config = $this->prophesize(\common_persistence_KeyValuePersistence::class);
-        $config->get(\common_persistence_Manager::SERVICE_ID)->willReturn($this->pmMock);
-        $config->get(DeliveryMonitoringService::SERVICE_ID)->willReturn($this->deliveryMonitoringService);
-        $this->deliveryMonitoringService->setServiceLocator(new ServiceManager($config->reveal()));
-    }
-
-    /**
-     * Init DeliveryUpdater task object
-     */
-    protected function initDeliveryUpdaterTask()
-    {
-        $this->deliveryUpdaterTask = new DeliveryUpdaterTask();
-        $this->deliveryUpdaterTask->setServiceLocator($this->getDeliveryMonitoringService()->getServiceLocator());
-    }
-
-    /**
-     * Get DeliveryMonitoringService object
-     *
-     * @return MonitoringStorage
-     */
-    protected function getDeliveryMonitoringService()
-    {
-        if (!$this->deliveryMonitoringService) {
-            $this->initDeliveryMonitoringService();
-        }
-        return $this->deliveryMonitoringService;
-    }
-
-    /**
-     * Get DeliveryUpdaterTask object
-     *
-     * @return DeliveryUpdaterTask
-     */
-    protected function getDeliveryUpdaterTask()
-    {
-        if (!$this->deliveryUpdaterTask) {
-            $this->initDeliveryUpdaterTask();
-        }
-        return $this->deliveryUpdaterTask;
-    }
-
+    
 }
