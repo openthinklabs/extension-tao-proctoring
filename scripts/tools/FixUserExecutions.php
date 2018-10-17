@@ -10,18 +10,15 @@ use oat\dtms\DateTime;
 use oat\oatbox\extension\script\ScriptAction;
 use \common_report_Report as Report;
 use oat\taoDelivery\model\execution\implementation\KeyValueService;
-use oat\taoDelivery\model\execution\KVDeliveryExecution;
-use oat\taoDelivery\model\execution\OntologyDeliveryExecution;
 use oat\taoDelivery\model\execution\ServiceProxy;
 use oat\taoProctoring\model\monitorCache\DeliveryMonitoringService;
-use oat\generis\model\OntologyRdfs;
 use oat\taoProctoring\model\execution\DeliveryExecution;
 use oat\taoDelivery\model\execution\DeliveryExecutionInterface;
 
 /**
  * Class FixMonitoringStates
  *
- * Fixing monitoring states if by some reason we have difference between storage and delivery executions storage
+ * Fix inconsistences in delivery execution kv storage
  *
  * Usage example:
  * ```
@@ -44,6 +41,7 @@ class FixUserExecutions extends ScriptAction
         DeliveryExecution::STATE_AUTHORIZED,
     ];
     private $executionService;
+    private $persistence;
 
     /**
      * @return string
@@ -83,7 +81,6 @@ class FixUserExecutions extends ScriptAction
     /**
      * @return Report
      * @throws \common_exception_Error
-     * @throws \common_exception_NotFound
      */
     protected function run()
     {
@@ -112,14 +109,27 @@ class FixUserExecutions extends ScriptAction
                 $data[DeliveryMonitoringService::DELIVERY_EXECUTION_ID]
             );
             try {
+                $update = false;
+
                 $executionsByStatus = $deliveryExecutionService->getDeliveryExecutionsByStatus(
                     $deliveryExecution->getUserIdentifier(),
                     $deliveryExecution->getState()->getUri()
                 );
                 if (!isset($executionsByStatus[$deliveryExecution->getIdentifier()])) {
-                    $count++;
-                    $this->fixExecutionData($deliveryExecution);
+                    $update = true;
+                    $this->fixExecutionStatus($deliveryExecution);
                 }
+
+                $userExecutions = $deliveryExecutionService->getUserExecutions($deliveryExecution->getDelivery(), $deliveryExecution->getUserIdentifier());
+                if (!isset($userExecutions[$deliveryExecution->getIdentifier()])) {
+                    $update = true;
+                    $this->fixExecutionList($deliveryExecution);
+                }
+
+                if ($update) {
+                    $count++;
+                }
+
             } catch (\common_exception_NotFound $e) {
                 continue;
             }
@@ -146,7 +156,7 @@ class FixUserExecutions extends ScriptAction
             'Starting checking delivery monitoring entries');
     }
 
-    private function getExecutionServiceImplemenation()
+    private function getExecutionServiceImplementation()
     {
         if ($this->executionService === null) {
             $extension = \common_ext_ExtensionsManager::singleton()->getExtensionById('taoDelivery');
@@ -155,14 +165,26 @@ class FixUserExecutions extends ScriptAction
         return $this->executionService;
     }
 
+    private function getExecutionServicePersistence()
+    {
+        if ($this->persistence === null) {
+            $persistenceOption = $this->getExecutionServiceImplementation()->getOption(KeyValueService::OPTION_PERSISTENCE);
+            $this->persistence = (is_object($persistenceOption))
+                ? $persistenceOption
+                : $this->getServiceLocator()->get(\common_persistence_Manager::SERVICE_ID)->getPersistenceById($persistenceOption);
+        }
+        return $this->persistence;
+    }
+
+
     /**
      * @param DeliveryExecutionInterface $deliveryExecution
      * @throws \common_exception_Error
      * @throws \common_exception_NotFound
      */
-    protected function fixExecutionData(DeliveryExecutionInterface $deliveryExecution)
+    protected function fixExecutionStatus(DeliveryExecutionInterface $deliveryExecution)
     {
-        $deliveryExecutionService = $this->getExecutionServiceImplemenation();
+        $deliveryExecutionService = $this->getExecutionServiceImplementation();
         $oldStatus = null;
         foreach ($this->statusesToCheck as $status) {
             $executions = $deliveryExecutionService->getDeliveryExecutionsByStatus($deliveryExecution->getUserIdentifier(), $status);
@@ -171,13 +193,40 @@ class FixUserExecutions extends ScriptAction
                 break;
             }
         }
-
         if ($deliveryExecutionService instanceof KeyValueService) {
             if ($this->wetRun === true) {
                 $deliveryExecutionService->updateDeliveryExecutionStatus($deliveryExecution, $oldStatus, $deliveryExecution->getState());
                 $this->report->add(new Report(Report::TYPE_INFO, "Execution was updated. id: {$deliveryExecution->getIdentifier()}; state: {$deliveryExecution->getState()}"));
             } else {
                 $this->report->add(new Report(Report::TYPE_INFO, "Execution will be updated. id: {$deliveryExecution->getIdentifier()}; state: {$deliveryExecution->getState()}"));
+            }
+
+        }
+    }
+
+    /**
+     * @param DeliveryExecutionInterface $deliveryExecution
+     * @throws \common_exception_Error
+     * @throws \common_exception_NotFound
+     */
+    protected function fixExecutionList(DeliveryExecutionInterface $deliveryExecution)
+    {
+        $deliveryExecutionService = $this->getExecutionServiceImplementation();
+        if ($deliveryExecutionService instanceof KeyValueService) {
+            if ($this->wetRun === true) {
+                $persistence = $this->getExecutionServicePersistence();
+                $uid = KeyValueService::USER_DELIVERY_PREFIX . $deliveryExecution->getUserIdentifier() . $deliveryExecution->getDelivery()->getUri();
+                $data = json_decode($persistence->get($uid));
+                if (!$data) {
+                    $data = [];
+                }
+                if (!in_array($deliveryExecution->getIdentifier(), $data)) {
+                    $data [] = $deliveryExecution->getIdentifier();
+                }
+                $persistence->set($uid, json_encode($data));
+                $this->report->add(new Report(Report::TYPE_INFO, "User executions list was updated. id: {$deliveryExecution->getIdentifier()}; state: {$deliveryExecution->getState()}"));
+            } else {
+                $this->report->add(new Report(Report::TYPE_INFO, "User executions list will be updated. id: {$deliveryExecution->getIdentifier()};"));
             }
         }
     }
