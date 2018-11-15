@@ -20,11 +20,16 @@
 namespace oat\taoProctoring\model\runner;
 
 use oat\generis\model\OntologyAwareTrait;
+use oat\oatbox\user\User;
 use oat\taoDelivery\model\execution\ServiceProxy;
+use oat\taoProctoring\model\authorization\TestTakerAuthorizationService;
 use oat\taoProctoring\model\ProctorService;
+use oat\taoQtiTest\models\ExtendedStateService;
 use oat\taoQtiTest\models\runner\QtiRunnerPausedException;
 use oat\taoQtiTest\models\runner\QtiRunnerService;
 use oat\taoQtiTest\models\runner\RunnerServiceContext;
+use oat\taoQtiTest\models\runner\session\TestSession;
+use oat\taoQtiTest\models\SectionPauseService;
 use qtism\runtime\tests\AssessmentTestSessionState;
 
 /**
@@ -38,6 +43,10 @@ class ProctoringRunnerService extends QtiRunnerService
 {
     use OntologyAwareTrait;
 
+    const IS_PROCTORED_KEY = 'is_proctored_delivery';
+
+    private $isProctored = null;
+
     /**
      * Get Test Context.
      *
@@ -50,34 +59,43 @@ class ProctoringRunnerService extends QtiRunnerService
     public function getTestContext(RunnerServiceContext $context)
     {
         $response = parent::getTestContext($context);
-
-        if (isset($response['options']) && isset($response['options']['sectionPause'])) {
-            $response['securePauseStateRequired'] = $response['options']['sectionPause'];
-        } else {
-            if ($context->getTestExecutionUri()) {
-                $deliveryExecution = ServiceProxy::singleton()->getDeliveryExecution($context->getTestExecutionUri());
-                if ($this->isProctoredDelivery($deliveryExecution->getDelivery())) {
-                    $response['securePauseStateRequired'] = true;
-                }
-            }
-        }
+        $response['securePauseStateRequired'] = $this->isSecurePauseStateRequired($context, $response);
 
         return $response;
     }
 
     /**
-     * Check whether secure plugins must be used.
+     * Check if delivery is proctored.
      *
-     * @param \core_kernel_classes_Resource $delivery
+     * @param TestSession $session
      * @return bool
-     * @throws \core_kernel_persistence_Exception
+     * @throws \common_Exception
+     * @throws \oat\oatbox\service\exception\InvalidServiceManagerException
      */
-    private function isProctoredDelivery(\core_kernel_classes_Resource $delivery)
+    public function isProctored(TestSession $session)
     {
-        $hasProctor = $delivery->getOnePropertyValue($this->getProperty(ProctorService::ACCESSIBLE_PROCTOR));
-        $result = $hasProctor instanceof \core_kernel_classes_Resource &&
-            $hasProctor->getUri() == ProctorService::ACCESSIBLE_PROCTOR_ENABLED;
-        return $result;
+        if (is_null($this->isProctored)) {
+            $this->isProctored = false;
+
+            /** @var ExtendedStateService $extendedStateService */
+            $extendedStateService = $this->getServiceLocator()->get(ExtendedStateService::SERVICE_ID);
+            $isProctored = $extendedStateService->getValue($session->getSessionId(), self::IS_PROCTORED_KEY);
+
+            if (is_null($isProctored)) {
+                $user = \common_session_SessionManager::getSession()->getUser();
+
+                // Get value from storage
+                $deliveryExecution = ServiceProxy::singleton()->getDeliveryExecution($session->getSessionId());
+
+                /** @var TestTakerAuthorizationService $authorizationService */
+                $authorizationService = $this->getServiceManager()->get(TestTakerAuthorizationService::SERVICE_ID);
+                $this->isProctored = $authorizationService->isProctored($deliveryExecution->getDelivery(), $user);
+
+                $extendedStateService->setValue($session->getSessionId(), self::IS_PROCTORED_KEY, $this->isProctored);
+            }
+        }
+
+        return $this->isProctored;
     }
 
     /**
@@ -100,5 +118,25 @@ class ProctoringRunnerService extends QtiRunnerService
         }
 
         return true;
+    }
+
+    /**
+     * Check if securePauseStateRequired is required.
+     *
+     * @param RunnerServiceContext $context
+     * @param $response
+     * @return mixed
+     * @throws \common_Exception
+     * @throws \oat\oatbox\service\exception\InvalidServiceManagerException
+     */
+    protected function isSecurePauseStateRequired(RunnerServiceContext $context, $response)
+    {
+        if (isset($response['options']['sectionPause'])) {
+            $securePauseIsRequired = $response['options']['sectionPause'];
+        } else {
+            $securePauseIsRequired = $this->isProctored($context->getTestSession());
+        }
+
+        return $securePauseIsRequired;
     }
 }

@@ -23,8 +23,7 @@ namespace oat\taoProctoring\model\execution;
 
 
 use oat\generis\model\OntologyAwareTrait;
-use oat\taoDelivery\model\execution\ServiceProxy;
-use oat\taoProctoring\model\authorization\TestTakerAuthorizationService;
+use oat\taoProctoring\model\runner\ProctoringRunnerService;
 use oat\taoQtiTest\models\SectionPauseService;
 use oat\taoQtiTest\models\runner\session\TestSession;
 use qtism\data\AssessmentItemRef;
@@ -38,8 +37,6 @@ class ProctoredSectionPauseService extends SectionPauseService
      * This category triggers the section pause
      */
     const PAUSE_CATEGORY = 'x-tao-proctored-auto-pause';
-
-    private $isProctored = null;
 
     /**
      * Checked the given session could be paused at some point
@@ -90,20 +87,18 @@ class ProctoredSectionPauseService extends SectionPauseService
      * @param TestSession $session
      * @return bool false by default
      */
+    /**
+     * @param TestSession $session
+     *
+     * @return bool
+     * @throws \common_Exception
+     * @throws \oat\oatbox\service\exception\InvalidServiceManagerException
+     */
     private function isProctored(TestSession $session)
     {
-        //check only once
-        if (is_null($this->isProctored)) {
-            $this->isProctored = false;
+        $proctoringRunnerService = $this->getServiceLocator()->get(ProctoringRunnerService::SERVICE_ID);
 
-            if (!is_null($session)) {
-                $user = \common_session_SessionManager::getSession()->getUser();
-                $deliveryExecution = ServiceProxy::singleton()->getDeliveryExecution($session->getSessionId());
-                $this->isProctored = $this->getServiceManager()->get(TestTakerAuthorizationService::SERVICE_ID)->isProctored($deliveryExecution->getDelivery(), $user);
-            }
-
-        }
-        return $this->isProctored;
+        return $proctoringRunnerService->isProctored($session);
     }
 
 
