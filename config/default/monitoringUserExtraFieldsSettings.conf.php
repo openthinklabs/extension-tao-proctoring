@@ -5,5 +5,6 @@
 
 return new oat\oatbox\config\ConfigurationService(array(
     'config' => array(
+        'custom_username' => ['filterable' => true]
     )
 ));

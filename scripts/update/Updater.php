@@ -902,5 +902,15 @@ class Updater extends common_ext_ExtensionUpdater
         }
 
         $this->skip('17.0.0', '17.2.2');
+
+
+        if ($this->isVersion('17.2.2')) {
+            $proctoringExtension = \common_ext_ExtensionsManager::singleton()->getExtensionById('taoProctoring');
+            $config = $proctoringExtension->getConfig('monitoringUserExtraFieldsSettings');
+            $config['custom_username'] = ['filterable' => true];
+            $proctoringExtension->setConfig('monitoringUserExtraFieldsSettings', $config);
+            $this->setVersion('17.2.3');
+        }
+
     }
 }
