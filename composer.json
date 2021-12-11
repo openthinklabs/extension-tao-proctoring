@@ -1,6 +1,6 @@
 {
 
-    "name": "oat-sa/extension-tao-proctoring",
+    "name": "openthinklabs/extension-tao-proctoring",
     "description" : "Proctoring for deliveries",
     "type" : "tao-extension",
     "authors" : [
