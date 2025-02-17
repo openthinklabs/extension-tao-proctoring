@@ -21,18 +21,18 @@
     },
     "minimum-stability" : "dev",
     "require": {
-        "oat-sa/oatbox-extension-installer": "~1.1||dev-master",
+        "openthinklabs/oatbox-extension-installer": "dev-master",
         "sinergi/browser-detector": "^6.0.2",
-        "oat-sa/generis" : ">=15.22",
-        "oat-sa/tao-core" : ">=54.0.0",
-        "oat-sa/extension-tao-delivery-rdf" : ">=14.0.0",
-        "oat-sa/extension-tao-delivery" : ">=15.0.0",
-        "oat-sa/extension-tao-eventlog" : ">=3.0.0",
-        "oat-sa/extension-tao-outcomeui" : ">=10.0.0",
-        "oat-sa/extension-tao-testqti" : ">=41.0.0",
-        "oat-sa/extension-tao-testtaker" : ">=8.0.0",
-        "oat-sa/extension-tao-test" : ">=15.0.0",
-        "oat-sa/lib-tao-dtms" : "^1.0.1"
+        "openthinklabs/generis" : "dev-master",
+        "openthinklabs/tao-core" : "dev-master",
+        "openthinklabs/extension-tao-delivery-rdf" : "dev-master",
+        "openthinklabs/extension-tao-delivery" : "dev-master",
+        "openthinklabs/extension-tao-eventlog" : "dev-master",
+        "openthinklabs/extension-tao-outcomeui" : "dev-master",
+        "openthinklabs/extension-tao-testqti" : "dev-master",
+        "openthinklabs/extension-tao-testtaker" : "dev-master",
+        "openthinklabs/extension-tao-test" : "dev-master",
+        "openthinklabs/lib-tao-dtms" : "dev-master"
     },
     "autoload" : {
         "psr-4" : {
